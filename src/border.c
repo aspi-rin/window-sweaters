@@ -1,5 +1,12 @@
 #include "border.h"
 #include "misc/autoyarn.h"
+#include "misc/screen.h"
+
+// Geometry-only test targets omit the native AppKit adapter.
+#ifndef knit_window_is_expanded
+__attribute__((weak))
+bool knit_window_is_expanded(CGRect window) { (void)window;return false; }
+#endif
 // A weak default so the test targets, which compile this file without the
 // ObjC module, still link. src/autoyarn.m provides the real implementation
 // and overrides this at link time in the app build.
@@ -63,6 +70,20 @@ static bool border_check_too_small(struct border* border, CGRect window_frame) {
   return false;
 }
 
+static bool border_check_expanded(struct border* border, struct settings* settings,
+                                   const CGRect* observed) {
+  if (!g_knit_on || settings->border_style != BORDER_STYLE_KNIT || border->is_proxy) {
+    border->expanded = false;
+  } else {
+    CGRect bounds;
+    if (observed) bounds = *observed;
+    else if (SLSGetWindowBounds(border->cid,border->target_wid,&bounds) != kCGErrorSuccess)
+      return border->expanded;
+    border->expanded = knit_window_is_expanded(bounds);
+  }
+  return border->expanded;
+}
+
 static bool border_calculate_bounds(struct border* border, CGRect* frame, struct settings* settings,
                                     const CGRect* observed_bounds) {
   CGRect window_frame = CGRectZero;
@@ -81,6 +102,10 @@ static bool border_calculate_bounds(struct border* border, CGRect* frame, struct
   }
 
   border->target_bounds = window_frame;
+  if (border_check_expanded(border,settings,&window_frame)) {
+    border_hide(border);
+    return false;
+  }
   border->too_small = border_check_too_small(border, window_frame);
   if (border->too_small) {
     border_hide(border);
@@ -493,7 +518,8 @@ static void border_apply_geometry(struct border* border, CGRect window_frame) {
   // AppKit may issue a move before the matching size event when resizing
   // from the top or left. Reconcile both dimensions from the same geometry
   // path instead of moving the old-size sweater to the new origin.
-  if (!border->geometry_valid || !border->wid || !border->context
+  bool expanded = border_check_expanded(border,settings,&window_frame);
+  if (expanded || !border->geometry_valid || !border->wid || !border->context
       || border->needs_redraw || border->too_small || border->metadata_dirty
       || !isfinite(window_frame.origin.x) || !isfinite(window_frame.origin.y)
       || !CGSizeEqualToSize(window_frame.size, border->drawing_bounds.size)) {
@@ -589,6 +615,11 @@ void border_update(struct border* border, bool try_async) {
 void border_reorder(struct border* border) {
   struct settings* settings = border_get_settings(border);
   pthread_mutex_lock(&border->mutex);
+  if (border_check_expanded(border,settings,NULL)) {
+    border_hide(border);
+    pthread_mutex_unlock(&border->mutex);
+    return;
+  }
   if (border->resize_suppressed || !border->wid || !border->context || border->too_small
       || border->is_proxy || border->external_proxy_wid
       || (!border->sticky && !is_space_visible(border->cid, border->sid))) {
@@ -645,6 +676,11 @@ void border_hide(struct border* border) {
 
 void border_unhide(struct border* border) {
   pthread_mutex_lock(&border->mutex);
+  if (border_check_expanded(border,border_get_settings(border),NULL)) {
+    border_hide(border);
+    pthread_mutex_unlock(&border->mutex);
+    return;
+  }
   if (border->resize_suppressed || border->native_transform || border->too_small
       || border->external_proxy_wid
       || (!border->sticky && !is_space_visible(border->cid, border->sid))) {

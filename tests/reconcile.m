@@ -16,7 +16,7 @@ pid_t g_pid = 100;
 bool g_knit_on = true;
 static struct settings settings = {.border_order = BORDER_ORDER_BELOW};
 static struct border target, discovered;
-static int hides, restores, geometry, orders, destroys, creates, surface_resets;
+static int hides, restores, geometry, orders, destroys, creates, surface_resets, geometry_updates;
 void border_reset_surface(struct border* b) { surface_resets++; b->visible=false; b->geometry_valid=false; }
 static bool gone;
 static CFAbsoluteTime test_now = 1;
@@ -34,6 +34,7 @@ CGError mock_bounds(int cid, uint32_t wid, CGRect* bounds) { *bounds=CGRectMake(
 struct settings* border_get_settings(struct border* b) { return &settings; }
 void border_update_geometry(struct border* b) { geometry++; b->target_bounds=CGRectMake(10,10,300,200); }
 void border_update_geometry_from_snapshot(struct border* b,CGRect frame,double opacity) {
+  geometry_updates++;
   if(!b->visible)restores++;else if(!CGRectEqualToRect(frame,b->target_bounds))geometry++;
   b->visible=true;b->geometry_valid=true;b->metadata_dirty=false;b->target_bounds=frame;b->opacity=opacity;
 }
@@ -71,6 +72,19 @@ int main(void) {@autoreleasepool {
   test_now += .21;
   observe(@[s,o,rear]);
   assert(space_checks == 2 && space_repairs == 1 && target.sid == 2 && !target.metadata_dirty);
+  // Expanded windows deliberately have no overlay; recovery must leave that
+  // surface hidden rather than repeatedly destroying/recreating it.
+  target.expanded=true;
+  int old_resets_expanded=surface_resets;
+  for(int i=0;i<5;i++)observe(@[s,rear]);
+  assert(surface_resets==old_resets_expanded);
+  target.expanded=false;
+  // Display/work-area changes can alter expanded state at identical bounds.
+  settings.border_style=BORDER_STYLE_KNIT;
+  int old_updates=geometry_updates;
+  test_now+=.21;observe(@[s,o,rear]);assert(geometry_updates==old_updates+1);
+  settings.border_style=BORDER_STYLE_ROUND;
+  restores=0;
   target.resize_suppressed=true;
   observe(@[s,rear]);assert(!restores&&!geometry); // Recovery must not resurrect the hidden resize ring.
   target.resize_suppressed=false;
