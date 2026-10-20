@@ -13,16 +13,18 @@ DEPLOY = -mmacosx-version-min=13.0
 .PHONY: all debug clean test preview catalogue bench styles
 
 all: | bin
+	clang $(ARCHS) $(DEPLOY) -O3 -g -Isrc -fobjc-arc -c src/screen.m -o bin/screen.o
 	clang $(ARCHS) $(DEPLOY) -O3 -g -Isrc -fobjc-arc -c src/menubar.m -o bin/menubar.o
 	clang $(ARCHS) $(DEPLOY) -O3 -g -Isrc -fobjc-arc -c src/autoyarn.m -o bin/autoyarn.o
 	clang $(ARCHS) $(DEPLOY) -O3 -g -Isrc -fobjc-arc -c src/hidden.m -o bin/hidden.o
-	clang $(ARCHS) $(DEPLOY) -std=c99 -O3 -g -Isrc $(CFILES) bin/menubar.o bin/autoyarn.o bin/hidden.o -o bin/borders $(LIBS)
+	clang $(ARCHS) $(DEPLOY) -std=c99 -O3 -g -Isrc $(CFILES) bin/screen.o bin/menubar.o bin/autoyarn.o bin/hidden.o -o bin/borders $(LIBS)
 
 debug: | bin
+	clang -O0 -g -Isrc -fobjc-arc -c src/screen.m -o bin/screen.o
 	clang -O0 -g -Isrc -fobjc-arc -c src/menubar.m -o bin/menubar.o
 	clang -O0 -g -Isrc -fobjc-arc -c src/autoyarn.m -o bin/autoyarn.o
 	clang -O0 -g -Isrc -fobjc-arc -c src/hidden.m -o bin/hidden.o
-	clang -std=c99 -O0 -g -DDEBUG -Isrc $(CFILES) bin/menubar.o bin/autoyarn.o bin/hidden.o -o bin/debug $(LIBS)
+	clang -std=c99 -O0 -g -DDEBUG -Isrc $(CFILES) bin/screen.o bin/menubar.o bin/autoyarn.o bin/hidden.o -o bin/debug $(LIBS)
 
 bin:
 	mkdir bin
@@ -34,6 +36,10 @@ bin/render-test: tests/render.c src/knit.c src/chart.c src/apps.c src/misc/knit.
 	clang -std=c99 -O3 -Isrc tests/render.c src/knit.c src/chart.c src/apps.c -framework ApplicationServices -framework CoreText -o $@
 
 test: bin/render-test
+	clang -O1 -g -fobjc-arc -fsanitize=address,undefined -Isrc tests/screens.m src/screen.m -framework AppKit -o bin/screens-test
+	bin/screens-test
+	clang -std=c99 -O1 -g -fsanitize=address,undefined -Isrc tests/expanded_windows.c src/animation.c -o bin/expanded-windows-test $(LIBS)
+	bin/expanded-windows-test
 	clang -std=c99 -O1 -g -fsanitize=address,undefined -Isrc tests/tracking.c src/animation.c -o bin/tracking-test $(LIBS)
 	bin/tracking-test
 	clang -std=c99 -O1 -g -fsanitize=address,undefined -Isrc tests/events.c src/hashtable.c -o bin/events-test $(LIBS)

@@ -156,7 +156,8 @@ void windows_reconcile_snapshot(struct table* windows, CFArrayRef snapshot) {
         continue;
       }
       border->missing_snapshots = 0;
-      if (now >= border->space_check_after) {
+      bool check_expanded = now >= border->space_check_after;
+      if (check_expanded) {
         border->space_check_after = now + .20;
         border_refresh_space(border);
       }
@@ -201,7 +202,7 @@ void windows_reconcile_snapshot(struct table* windows, CFArrayRef snapshot) {
       // onscreen. Try the cheap restore first, then replace a stranded surface
       // after three settled snapshots. Never rebuild during resize/animation,
       // while the source is hidden, or more than once per second.
-      if (!overlay || overlay->alpha <= 0) {
+      if (!border->expanded && (!overlay || overlay->alpha <= 0)) {
         if (++border->missing_overlay_snapshots >= 3 && now >= border->overlay_rebuild_after) {
           border_reset_surface(border);
           border->missing_overlay_snapshots = 0;
@@ -214,7 +215,8 @@ void windows_reconcile_snapshot(struct table* windows, CFArrayRef snapshot) {
         border_update_geometry_from_snapshot(border, geometry, source->alpha);
       } else if (!CGRectEqualToRect(geometry, border->target_bounds)
                  || fabs(source->alpha - border->opacity) > .001
-                 || !border->geometry_valid || border->needs_redraw || border->metadata_dirty) {
+                 || !border->geometry_valid || border->needs_redraw || border->metadata_dirty
+                 || (check_expanded && border_get_settings(border)->border_style == BORDER_STYLE_KNIT)) {
         border_update_geometry_from_snapshot(border, geometry, source->alpha);
       } else {
         int order = border_get_settings(border)->border_order;

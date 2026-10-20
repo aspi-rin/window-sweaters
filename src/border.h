@@ -107,6 +107,7 @@ struct border {
   CGRect frame;
   CGRect target_bounds;
   CGRect drawing_bounds;
+  bool expanded; // decoration hidden while fullscreen/maximized
   CGContextRef context;
 
   struct animation animation;
