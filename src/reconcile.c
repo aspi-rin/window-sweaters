@@ -202,7 +202,7 @@ void windows_reconcile_snapshot(struct table* windows, CFArrayRef snapshot) {
       // onscreen. Try the cheap restore first, then replace a stranded surface
       // after three settled snapshots. Never rebuild during resize/animation,
       // while the source is hidden, or more than once per second.
-      if (!border->expanded && (!overlay || overlay->alpha <= 0)) {
+      if (!border->expanded && !border->self_shadowed && (!overlay || overlay->alpha <= 0)) {
         if (++border->missing_overlay_snapshots >= 3 && now >= border->overlay_rebuild_after) {
           border_reset_surface(border);
           border->missing_overlay_snapshots = 0;

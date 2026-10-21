@@ -79,6 +79,11 @@ int main(void) {@autoreleasepool {
   for(int i=0;i<5;i++)observe(@[s,rear]);
   assert(surface_resets==old_resets_expanded);
   target.expanded=false;
+  // So do self-shadowed popups, whose transparent margin keeps them bare.
+  target.self_shadowed=true;
+  for(int i=0;i<5;i++)observe(@[s,rear]);
+  assert(surface_resets==old_resets_expanded);
+  target.self_shadowed=false;
   // Display/work-area changes can alter expanded state at identical bounds.
   settings.border_style=BORDER_STYLE_KNIT;
   int old_updates=geometry_updates;

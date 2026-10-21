@@ -57,7 +57,7 @@ Icons are sampled locally in the background when needed. While the colour is bei
 
 ## A little work in progress
 
-I built this on my Mac and use it myself, but there are still rough edges. Borders hide while you resize a window and return when you're done. Sweaters also hide while a window fills a display (native fullscreen) or its entire available work area (maximized), then return at ordinary window sizes. Ordinary windows keep the original outside border, including when they touch a screen edge. This display-state check leaves window positions and sizes unchanged.
+I built this on my Mac and use it myself, but there are still rough edges. Borders hide while you resize a window and return when you're done. Sweaters also hide while a window fills a display (native fullscreen) or its entire available work area (maximized), then return at ordinary window sizes. Ordinary windows keep the original outside border, including when they touch a screen edge. This display-state check leaves window positions and sizes unchanged. Popups that draw their own shadow inside a transparent margin, such as WeChat's contact card, go without a sweater: their window is larger than the card you see, so a fitted border would float around it.
 
 The app is built for **macOS 13 or later, on Apple Silicon and Intel**. I've tested it on Apple Silicon with macOS 26; older macOS versions and Intel Macs haven't had the same hands-on testing. It uses private macOS window APIs, so system updates may affect how it works.
 

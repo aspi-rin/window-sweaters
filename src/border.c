@@ -325,6 +325,15 @@ void border_update_internal(struct border* border, struct settings* settings, co
   // Geometry events are frequent; stacking and space metadata change only on
   // their own notifications. Avoid these synchronous server queries per stitch
   // redraw while dragging a resize handle.
+  if (border->metadata_dirty)
+    border->self_shadowed = !border->is_proxy
+                            && window_self_shadowed(cid, border->target_wid);
+  if (border->self_shadowed) {
+    // Metadata stays dirty, so every update asks again and the remaining
+    // queries wait until the sweater can actually be shown.
+    border_hide(border);
+    return;
+  }
   if (border->metadata_dirty) {
     uint64_t tags = window_tags(cid, border->target_wid);
     border->sticky = tags & WINDOW_TAG_STICKY;
@@ -615,7 +624,7 @@ void border_update(struct border* border, bool try_async) {
 void border_reorder(struct border* border) {
   struct settings* settings = border_get_settings(border);
   pthread_mutex_lock(&border->mutex);
-  if (border_check_expanded(border,settings,NULL)) {
+  if (border->self_shadowed || border_check_expanded(border,settings,NULL)) {
     border_hide(border);
     pthread_mutex_unlock(&border->mutex);
     return;
@@ -676,7 +685,8 @@ void border_hide(struct border* border) {
 
 void border_unhide(struct border* border) {
   pthread_mutex_lock(&border->mutex);
-  if (border_check_expanded(border,border_get_settings(border),NULL)) {
+  if (border->self_shadowed
+      || border_check_expanded(border,border_get_settings(border),NULL)) {
     border_hide(border);
     pthread_mutex_unlock(&border->mutex);
     return;

@@ -2,6 +2,8 @@
 #include "extern.h"
 #include "helpers.h"
 #include "space.h"
+#include <dlfcn.h>
+#include <math.h>
 
 #define WINDOW_TAG_DOCUMENT      (1ULL << 0)
 #define WINDOW_TAG_FLOATING      (1ULL << 1)
@@ -45,6 +47,58 @@ static inline uint64_t window_tags(int cid, uint32_t wid) {
   CFRelease(window_ref);
   return tags;
 }
+
+// The WindowServer reports an ordinary window's frame bounds as its bounds
+// plus the shadow it draws (23/16/23/30 pt when inactive). A window without
+// that shadow usually paints its own inside a transparent margin, as WeChat's
+// contact card and other popups do (about 24 pt), so its bounds do not
+// describe the visible card and a sweater fitted to them floats around it.
+static inline bool window_frame_lacks_system_shadow(CGRect bounds, CGRect frame) {
+  const double slack = .5;
+  if (CGRectIsEmpty(bounds) || CGRectIsNull(frame) || CGRectIsEmpty(frame)) return false;
+  return fabs(CGRectGetMinX(bounds) - CGRectGetMinX(frame)) <= slack
+      && fabs(CGRectGetMinY(bounds) - CGRectGetMinY(frame)) <= slack
+      && fabs(CGRectGetMaxX(bounds) - CGRectGetMaxX(frame)) <= slack
+      && fabs(CGRectGetMaxY(bounds) - CGRectGetMaxY(frame)) <= slack;
+}
+
+// Test targets substitute a scripted answer for this query.
+#ifndef window_self_shadowed
+static inline bool window_self_shadowed(int cid, uint32_t wid) {
+  // Not exported by every supported macOS: resolve at run time, never link.
+  // Without them the answer is false, which keeps the previous behaviour.
+  static CGRect (*iterator_bounds)(CFTypeRef);
+  static CGRect (*iterator_frame_bounds)(CFTypeRef);
+  static bool resolved;
+  if (!resolved) {
+    iterator_bounds = (CGRect (*)(CFTypeRef))dlsym(RTLD_DEFAULT, "SLSWindowIteratorGetBounds");
+    iterator_frame_bounds = (CGRect (*)(CFTypeRef))dlsym(RTLD_DEFAULT, "SLSWindowIteratorGetFrameBounds");
+    resolved = true;
+  }
+  if (!iterator_bounds || !iterator_frame_bounds) return false;
+
+  bool self_shadowed = false;
+  CFArrayRef window_ref = cfarray_of_cfnumbers(&wid,
+                                               sizeof(uint32_t),
+                                               1,
+                                               kCFNumberSInt32Type);
+  if (!window_ref) return false;
+  CFTypeRef query = SLSWindowQueryWindows(cid, window_ref, 0x0);
+  if (query) {
+    CFTypeRef iterator = SLSWindowQueryResultCopyWindows(query);
+    if (iterator
+        && SLSWindowIteratorGetCount(iterator) > 0
+        && SLSWindowIteratorAdvance(iterator)     ) {
+      self_shadowed = window_frame_lacks_system_shadow(iterator_bounds(iterator),
+                                                       iterator_frame_bounds(iterator));
+    }
+    if (iterator) CFRelease(iterator);
+    CFRelease(query);
+  }
+  CFRelease(window_ref);
+  return self_shadowed;
+}
+#endif
 
 static inline uint32_t get_front_window(int cid) {
   uint32_t wid = 0;

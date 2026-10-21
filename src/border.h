@@ -108,6 +108,9 @@ struct border {
   CGRect target_bounds;
   CGRect drawing_bounds;
   bool expanded; // decoration hidden while fullscreen/maximized
+  // The target paints its own shadow inside a transparent margin, so its
+  // bounds do not describe what is visible; decoration stays hidden.
+  bool self_shadowed;
   CGContextRef context;
 
   struct animation animation;
