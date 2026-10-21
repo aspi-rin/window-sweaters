@@ -40,6 +40,8 @@ test: bin/render-test
 	bin/screens-test
 	clang -std=c99 -O1 -g -fsanitize=address,undefined -Isrc tests/expanded_windows.c src/animation.c -o bin/expanded-windows-test $(LIBS)
 	bin/expanded-windows-test
+	clang -std=c99 -O1 -g -fsanitize=address,undefined -Isrc tests/shadowless_windows.c src/animation.c -o bin/shadowless-windows-test $(LIBS)
+	bin/shadowless-windows-test
 	clang -std=c99 -O1 -g -fsanitize=address,undefined -Isrc tests/tracking.c src/animation.c -o bin/tracking-test $(LIBS)
 	bin/tracking-test
 	clang -std=c99 -O1 -g -fsanitize=address,undefined -Isrc tests/events.c src/hashtable.c -o bin/events-test $(LIBS)

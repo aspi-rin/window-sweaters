@@ -23,14 +23,21 @@
 #define SLSFlushWindowContentRegion mock_flush
 #define SLSSetWindowAlpha mock_alpha
 #define SLSReleaseWindow mock_release_window
+#include <stdbool.h>
+#include <stdint.h>
+// Never ask the real WindowServer about a scripted window number.
+static bool mock_self_shadowed(int cid, uint32_t wid);
+#define window_self_shadowed mock_self_shadowed
 #include "../src/border.h"
 static int mock_window_level(int cid, uint32_t wid);
 static int mock_window_sub_level(int cid, uint32_t wid);
 static bool mock_space_visible(int cid, uint64_t sid);
 static uint64_t mock_window_space(int cid, uint32_t wid);
 static void mock_send_space(int cid, uint32_t wid, uint64_t sid);
+static uint64_t mock_window_tags(int cid, uint32_t wid) { (void)cid; (void)wid; return 0; }
 #define window_space_id mock_window_space
 #define window_send_to_space mock_send_space
+#define window_tags mock_window_tags
 #define window_level mock_window_level
 #define window_sub_level mock_window_sub_level
 #define is_space_visible mock_space_visible
@@ -88,6 +95,13 @@ static void mock_send_space(int cid, uint32_t wid, uint64_t sid) {
   if (!fail_space_move) overlay_space = sid;
 }
 static bool mock_space_visible(int cid, uint64_t sid) { return !space_hidden; }
+static bool target_self_shadowed;
+static int shadow_queries;
+static bool mock_self_shadowed(int cid, uint32_t wid) {
+  assert(cid == 1 && wid == 3);
+  shadow_queries++;
+  return target_self_shadowed;
+}
 CGError mock_bounds(int cid, uint32_t wid, CGRect* out) {
   bounds_queries++;
   if (fail_bounds) return kCGErrorFailure;
