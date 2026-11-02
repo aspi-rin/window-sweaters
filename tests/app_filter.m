@@ -239,6 +239,43 @@ int main(void) {
     knit_apps_set_all(true);
     windows_apply_app_filter(&g_windows);
     assert(!border_of(12) && border_count() == 4);
+
+    // iPhone Mirroring paints a custom phone surface inside its top-level
+    // rectangle. The compatibility policy leaves both connection and live
+    // windows bare, whichever process name or discovery route is used.
+    fake_windows[fake_count++] = (struct fake_window){41, 504, "iPhone Mirroring", true};
+    fake_windows[fake_count++] = (struct fake_window){42, 504, "iPhone 镜像", true};
+    fake_windows[fake_count++] = (struct fake_window){43, 505, "iPhone Mirroring", true};
+    fake_bundles = @{@501: @"com.example.alpha", @502: @"com.example.beta",
+                     @504: @"com.apple.ScreenContinuity", @505: @"com.example.unrelated"};
+    created = 0;
+    assert(!windows_window_create(&g_windows, 41, 1));
+    assert(!windows_window_create(&g_windows, 42, 1));
+    assert(created == 0 && !border_of(41) && !border_of(42));
+    assert(windows_window_create(&g_windows, 43, 1));
+    assert(created == 1 && border_of(43));  // name alone never excludes another app
+    // A record left by an older policy is removed by the same live filter;
+    // another owner's existing border stays at the identical address.
+    struct border* unrelated = border_of(43);
+    struct border* legacy = border_create();
+    legacy->target_wid = 41;
+    legacy->owner_pid = 504;
+    snprintf(legacy->app, sizeof legacy->app, "iPhone Mirroring");
+    uint32_t legacy_wid = 41;
+    table_add(&g_windows, &legacy_wid, legacy);
+    int destroyed_before = destroyed;
+    windows_apply_app_filter(&g_windows);
+    assert(!border_of(41) && destroyed == destroyed_before + 1 && border_of(43) == unrelated);
+    knit_apps_set_all(false);
+    windows_apply_app_filter(&g_windows);
+    knit_app_set_hidden("com.apple.ScreenContinuity", false);
+    windows_apply_app_filter(&g_windows);
+    assert(!border_of(41) && !border_of(42));
+    knit_apps_set_all(true);
+    windows_add_existing_windows(&g_windows);
+    windows_add_missing_windows(&g_windows);
+    windows_apply_app_filter(&g_windows);
+    assert(!border_of(41) && !border_of(42) && border_of(43));
   }
   puts("PASS: live per-app switching through the production window code: targeted removal and "
        "restoration, focus restored, all off/on, script filters respected, closed windows stay closed");

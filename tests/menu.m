@@ -136,8 +136,10 @@ static void check_actions(NSMenu* menu) {
   for (NSMenuItem* item in menu.itemArray) {
     if (item.isSeparatorItem) continue;
     if (item.tag == KNIT_MENU_HEADER_TAG) { assert(!item.enabled && !item.action); continue; }
-    // Only the two resets may be dimmed, and only when they would change nothing.
-    assert(item.enabled || item.action == @selector(setAllApps:));
+    // Resets may be dimmed when unchanged; incompatible apps explain why.
+    assert(item.enabled || item.action == @selector(setAllApps:)
+           || (item.action == @selector(toggleApp:) && item.toolTip.length
+               && knit_app_border_exclusion_reason([item.representedObject UTF8String])));
     if (item.submenu) { assert(item.submenu.numberOfItems > 0); check_actions(item.submenu); }
     else assert(item.action && item.target);
   }
@@ -251,6 +253,30 @@ static void test_apps(KnitMenu* controller, NSMenu* menu) {
   assert([titles(submenu(menu, @"Apps")) isEqualToArray:(@[@"No Available Apps", @"-",
           @"Turn On for All Apps", @"Turn Off for All Apps"])]);
   knit_apps_set_all(true);
+}
+
+static void test_custom_window_compatibility(KnitMenu* controller, NSMenu* menu) {
+  knit_apps_set_all(true);
+  running_apps = [NSMutableArray arrayWithArray:@[
+    fake_app(@"com.apple.ScreenContinuity", @"iPhone 镜像"),
+    fake_app(@"com.example.unrelated", @"iPhone Mirroring")]];
+  [controller rebuild:menu];
+  NSMenu* apps = submenu(menu, @"Apps");
+  NSMenuItem* mirror = [apps itemWithTitle:@"iPhone 镜像"];
+  assert(mirror && !mirror.enabled && mirror.state == NSControlStateValueOff);
+  assert(mirror.toolTip.length > 0);
+  assert([apps itemWithTitle:@"iPhone Mirroring"].enabled);
+  filter_changes = 0;
+  [controller toggleApp:mirror];   // even a direct action cannot enable it
+  assert(knit_app_hidden("com.apple.ScreenContinuity") && filter_changes == 0);
+  [controller setAllApps:[apps itemWithTitle:@"Turn Off for All Apps"]];
+  [controller setAllApps:[apps itemWithTitle:@"Turn On for All Apps"]];
+  [controller rebuild:menu];
+  mirror = [submenu(menu, @"Apps") itemWithTitle:@"iPhone 镜像"];
+  assert(!mirror.enabled && mirror.state == NSControlStateValueOff && mirror.toolTip.length);
+  assert(knit_app_exception_count() == 0);
+  check_actions(menu);
+  running_apps = [NSMutableArray array];
 }
 
 int main(void) {
@@ -386,6 +412,7 @@ int main(void) {
     assert([[KnitTestDefaults standardUserDefaults] floatForKey:@"gauge"] == 6);
     test_listing();
     test_apps(controller, menu);
+    test_custom_window_compatibility(controller, menu);
     puts("PASS: per-app switches: listing rules, sorted, truthful, persisted, reversible, all on and all off");
     puts("PASS: native menu structure, truthful state, working selections, chart filtering, gauge limits, cached swatches");
   }
