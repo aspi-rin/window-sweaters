@@ -328,7 +328,9 @@ static void knit_load_prefs(void) {
   item.image = app.icon;
   item.state = knit_app_hidden(app.bundleID.UTF8String) ? NSControlStateValueOff
                                                         : NSControlStateValueOn;
-  item.enabled = YES;
+  const char* reason = knit_app_border_exclusion_reason(app.bundleID.UTF8String);
+  item.enabled = reason == NULL;
+  if (reason) item.toolTip = [NSString stringWithUTF8String:reason];
   [menu addItem:item];
   return item;
 }

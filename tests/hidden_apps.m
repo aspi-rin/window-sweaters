@@ -96,9 +96,25 @@ static void test_owners(void) {
   knit_apps_set_all(true);
 }
 
+static void test_custom_window_compatibility(void) {
+  knit_apps_set_all(true);
+  assert(knit_app_exception_count() == 0);
+  assert(knit_app_hidden("com.apple.ScreenContinuity"));
+  assert(!knit_app_hidden("com.apple.ScreenContinuity.helper"));
+  assert(!knit_app_hidden("com.apple.screencontinuity"));
+  assert(!knit_app_set_hidden("com.apple.ScreenContinuity", false));
+  assert(knit_app_hidden("com.apple.ScreenContinuity") && knit_app_exception_count() == 0);
+  knit_apps_set_all(false);
+  assert(!knit_app_set_hidden("com.apple.ScreenContinuity", false));
+  assert(knit_app_hidden("com.apple.ScreenContinuity") && knit_app_exception_count() == 0);
+  knit_apps_set_all(true);
+  assert(knit_app_hidden("com.apple.ScreenContinuity"));
+}
+
 int main(void) {
   test_list();
   test_owners();
+  test_custom_window_compatibility();
   puts("PASS: per-app choices, all on/all off defaults, exact identifiers, no silent limits, window owners resolved through AppKit");
   return 0;
 }

@@ -33,13 +33,24 @@ bool knit_apps_set_all(bool on) {
   return changed;
 }
 
+// iPhone Mirroring's connection sheet and live phone surface use different
+// outlines inside their top-level windows. Bounds alone cannot fit either
+// reliably. Keep the compatibility decision in the same gate as user choices,
+// keyed by the system bundle identity rather than a localised process name.
+const char* knit_app_border_exclusion_reason(const char* bundle_id) {
+  if (bundle_id && strcmp(bundle_id, "com.apple.ScreenContinuity") == 0)
+    return "Sweaters are disabled for iPhone Mirroring's custom window shape.";
+  return NULL;
+}
+
 bool knit_app_hidden(const char* bundle_id) {
+  if (knit_app_border_exclusion_reason(bundle_id)) return true;
   return (exception_index(bundle_id) >= 0) == g_on_by_default;
 }
 
 bool knit_app_set_hidden(const char* bundle_id, bool hidden) {
   assert(pthread_main_np());
-  if (!bundle_id || !*bundle_id) return false;
+  if (!bundle_id || !*bundle_id || knit_app_border_exclusion_reason(bundle_id)) return false;
   int index = exception_index(bundle_id);
   bool listed = hidden == g_on_by_default;   // listed means "differs from the default"
   if (listed) {
@@ -76,7 +87,6 @@ const char* knit_app_exception(int index) {
 // for one, runs from a temporary "Google Chrome.app.bundle" clone after an update.
 bool knit_pid_hidden(int pid) {
   assert(pthread_main_np());
-  if (g_on_by_default && !g_exception_count) return false;   // the usual case
   @autoreleasepool {
     NSString* identifier = pid > 0
       ? [NSRunningApplication runningApplicationWithProcessIdentifier:pid].bundleIdentifier

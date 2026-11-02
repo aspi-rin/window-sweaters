@@ -64,16 +64,20 @@ bool knit_apps_on_by_default(void);
 /// Every app on, or every app off, forgetting individual choices. Returns
 /// true only if this changed anything.
 bool knit_apps_set_all(bool on);
+/// A built-in compatibility exclusion, independent of saved user choices.
+/// NULL means the app follows the normal menu/script policy.
+const char* knit_app_border_exclusion_reason(const char* bundle_id);
 bool knit_app_hidden(const char* bundle_id);
 /// Returns true only if this changed anything. No length or count limit, so
-/// a click on any listed app always takes effect.
+/// a click on any compatible listed app always takes effect. Compatibility
+/// exclusions remain hidden and are not added to the saved exceptions.
 bool knit_app_set_hidden(const char* bundle_id, bool hidden);
 /// The apps that differ from the default, in the order they were chosen.
 int knit_app_exception_count(void);
 const char* knit_app_exception(int index);
 
-/// Whether a window owned by this process should go without a sweater. Free
-/// while every app is on, the usual case. The owner is asked of AppKit, never
+/// Whether a window owned by this process should go without a sweater. The
+/// owner is asked of AppKit for both compatibility and user choices, never
 /// parsed from a path. A process without a bundle identifier cannot be
 /// listed, so it follows the default.
 bool knit_pid_hidden(int pid);
