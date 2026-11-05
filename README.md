@@ -127,3 +127,14 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for more details.
 ## Credits and license
 
 Built on [JankyBorders](https://github.com/FelixKratz/JankyBorders) by Felix Kratz, with thanks. Released under [GPL-3.0](LICENSE). See [NOTICE.md](NOTICE.md) for attribution.
+
+### WeChat windows
+
+WeChat sweaters are restricted to its main window and the shared image/video
+viewer. Other panels, including contact cards, stay bare even if they report
+normal window shadows. The rule uses the exact `com.tencent.xinWeChat` bundle
+identity and verified WindowServer titles (`微信`, `WeChat`, `图片和视频`),
+with missing or unfamiliar WeChat titles kept bare. It does not use window
+size or content. Switching WeChat off in the Apps menu still hides all of its
+sweaters; switching it on retains this window restriction. No Accessibility
+permission is needed for the title check. Window titles are never logged.

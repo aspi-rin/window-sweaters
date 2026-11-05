@@ -42,6 +42,8 @@ test: bin/render-test
 	bin/expanded-windows-test
 	clang -std=c99 -O1 -g -fsanitize=address,undefined -Isrc tests/shadowless_windows.c src/animation.c -o bin/shadowless-windows-test $(LIBS)
 	bin/shadowless-windows-test
+	clang -std=c99 -O1 -g -fsanitize=address,undefined -Isrc tests/wechat_windows.c src/animation.c -o bin/wechat-windows-test $(LIBS)
+	bin/wechat-windows-test
 	clang -std=c99 -O1 -g -fsanitize=address,undefined -Isrc tests/tracking.c src/animation.c -o bin/tracking-test $(LIBS)
 	bin/tracking-test
 	clang -std=c99 -O1 -g -fsanitize=address,undefined -Isrc tests/events.c src/hashtable.c -o bin/events-test $(LIBS)
@@ -65,10 +67,10 @@ test: bin/render-test
 # Optional native integration probe: build only. Running it creates its own
 # temporary window; keep it out of unattended unit tests.
 bin/live-resize: tests/live_resize.m src/border.c src/border.h src/knit.c src/chart.c src/apps.c | bin
-	clang -O2 -g -fobjc-arc -Isrc tests/live_resize.m src/animation.c src/knit.c src/chart.c src/apps.c -o $@ $(LIBS)
+	clang -O2 -g -fobjc-arc -Isrc tests/live_resize.m src/animation.c src/knit.c src/chart.c src/apps.c src/hidden.m -o $@ $(LIBS)
 
 bin/live-order: tests/live_order.m tests/live_resize.m src/border.c src/border.h src/knit.c src/chart.c src/apps.c | bin
-	clang -O2 -g -fobjc-arc -Isrc tests/live_order.m src/animation.c src/knit.c src/chart.c src/apps.c -o $@ $(LIBS)
+	clang -O2 -g -fobjc-arc -Isrc tests/live_order.m src/animation.c src/knit.c src/chart.c src/apps.c src/hidden.m -o $@ $(LIBS)
 
 preview: bin/render-test
 	mkdir -p outputs
@@ -86,7 +88,7 @@ bench: bin/render-test
 
 # Optional owned-window display handoff probe; --list is read-only.
 bin/live-display: tests/live_display.m tests/live_resize.m src/border.c src/border.h src/knit.c src/chart.c src/apps.c | bin
-	clang -O2 -g -fobjc-arc -Isrc tests/live_display.m src/animation.c src/knit.c src/chart.c src/apps.c -o $@ $(LIBS)
+	clang -O2 -g -fobjc-arc -Isrc tests/live_display.m src/animation.c src/knit.c src/chart.c src/apps.c src/hidden.m -o $@ $(LIBS)
 
 # The README's By App / Zigzag comparison only; Zigzag colours are fixed in tests/render.c.
 styles: bin/render-test

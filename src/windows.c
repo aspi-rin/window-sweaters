@@ -55,7 +55,8 @@ bool windows_window_create(struct table* windows, uint32_t wid, uint64_t sid) {
   }
 
 
-  if (pid == g_pid || !app_allowed(&g_settings, pid_name_buffer, pid)) return false;
+  if (pid == g_pid || !app_allowed(&g_settings, pid_name_buffer, pid)
+      || !knit_window_supported(pid, wid)) return false;
 
   CFArrayRef target_ref = cfarray_of_cfnumbers(&wid,
                                                sizeof(uint32_t),
@@ -138,7 +139,8 @@ void windows_apply_app_filter(struct table* windows) {
     for (struct bucket* bucket = windows->buckets[i]; bucket; bucket = bucket->next) {
       struct border* border = bucket->value;
       if (border && !border->is_proxy
-          && !app_allowed(&g_settings, border->app, border->owner_pid))
+          && (!app_allowed(&g_settings, border->app, border->owner_pid)
+              || !knit_window_supported(border->owner_pid, border->target_wid)))
         removed[count++] = *(uint32_t*)bucket->key;
     }
   }

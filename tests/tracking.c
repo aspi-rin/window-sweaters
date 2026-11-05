@@ -41,6 +41,10 @@ static uint64_t mock_window_tags(int cid, uint32_t wid) { (void)cid; (void)wid; 
 #define window_level mock_window_level
 #define window_sub_level mock_window_sub_level
 #define is_space_visible mock_space_visible
+static bool target_window_supported = true;
+bool knit_window_supported(int pid, uint32_t wid) {
+  (void)pid; (void)wid; return target_window_supported;
+}
 #include "../src/border.c"
 
 struct settings g_settings = {.border_width = 10, .border_style = BORDER_STYLE_KNIT,

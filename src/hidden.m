@@ -96,3 +96,30 @@ bool knit_pid_hidden(int pid) {
     return knit_app_hidden(identifier.UTF8String);
   }
 }
+
+// WeChat's other panels can include transparent content margins even when
+// WindowServer reports an ordinary shadow. Use the verified window titles,
+// independently of frame size, theme, shadow or saved app-menu choices.
+bool knit_window_supported(int pid, uint32_t wid) {
+  assert(pthread_main_np());
+  @autoreleasepool {
+    NSString* identifier = pid > 0
+      ? [NSRunningApplication runningApplicationWithProcessIdentifier:pid].bundleIdentifier
+      : nil;
+    if (![identifier isEqualToString:@"com.tencent.xinWeChat"]) return true;
+    if (!wid) return false;
+    // This API takes raw CGWindowID entries, not CFNumber objects. Unlike an
+    // on-screen window-info query, it also describes windows on other Spaces.
+    const void* value = (const void*)(uintptr_t)wid;
+    CFArrayRef ids = CFArrayCreate(NULL, &value, 1, NULL);
+    if (!ids) return false;
+    NSArray* windows = CFBridgingRelease(CGWindowListCreateDescriptionFromArray(ids));
+    CFRelease(ids);
+    if (windows.count != 1 || ![windows.firstObject isKindOfClass:NSDictionary.class])
+      return false;
+    id title = windows.firstObject[(__bridge NSString*)kCGWindowName];
+    if (![title isKindOfClass:NSString.class]) return false;
+    return [title isEqualToString:@"微信"] || [title isEqualToString:@"WeChat"]
+        || [title isEqualToString:@"图片和视频"];
+  }
+}

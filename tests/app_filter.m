@@ -114,9 +114,23 @@ static NSDictionary<NSNumber*, NSString*>* fake_bundles;
   return app;
 }
 @end
+static NSDictionary<NSNumber*, id>* fake_titles;
+static bool fail_description;
+static CFArrayRef mock_window_descriptions(CFArrayRef ids) {
+  assert(CFArrayGetCount(ids) == 1);
+  // Match CoreGraphics' actual raw-ID ABI, including off-screen windows.
+  uint32_t wid = (uint32_t)(uintptr_t)CFArrayGetValueAtIndex(ids,0);
+  assert(wid > 0 && wid < 100);
+  if (fail_description) return NULL;
+  id title = fake_titles[@(wid)];
+  NSDictionary *item = title ? @{(__bridge NSString*)kCGWindowName:title} : @{};
+  return (__bridge_retained CFArrayRef)@[item];
+}
+#define CGWindowListCreateDescriptionFromArray mock_window_descriptions
 #define NSRunningApplication FakeRunningApplication
 #include "../src/hidden.m"
 #undef NSRunningApplication
+#undef CGWindowListCreateDescriptionFromArray
 
 // ---- Everything windows.c expects from the rest of the app.
 struct table g_windows;
@@ -276,6 +290,41 @@ int main(void) {
     windows_add_missing_windows(&g_windows);
     windows_apply_app_filter(&g_windows);
     assert(!border_of(41) && !border_of(42) && border_of(43));
+
+    // Current WeChat main, image and video windows have verified static titles.
+    // Other windows are rejected even with ordinary document tags and shadows.
+    fake_bundles = @{@501:@"com.example.alpha", @502:@"com.example.beta",
+      @504:@"com.apple.ScreenContinuity", @505:@"com.example.unrelated",
+      @506:@"com.tencent.xinWeChat", @507:@"com.example.same-process-name"};
+    fake_titles = @{@51:@"微信", @52:@"图片和视频", @53:@"联系人资料", @54:@"视频"};
+    fake_windows[fake_count++] = (struct fake_window){51,506,"WeChat",true};
+    fake_windows[fake_count++] = (struct fake_window){52,506,"WeChat",true};
+    fake_windows[fake_count++] = (struct fake_window){53,506,"WeChat",true};
+    fake_windows[fake_count++] = (struct fake_window){54,506,"WeChat",true};
+    fake_windows[fake_count++] = (struct fake_window){55,507,"WeChat",true};
+    assert(windows_window_create(&g_windows,51,1));
+    assert(windows_window_create(&g_windows,52,1));
+    assert(!windows_window_create(&g_windows,53,1) && !border_of(53));
+    assert(!windows_window_create(&g_windows,54,1) && !border_of(54));
+    assert(windows_window_create(&g_windows,55,1));
+    // Existing allowed records are reconsidered after a title change.
+    fake_titles = @{@51:@"联系人资料", @52:@"图片和视频"};
+    windows_apply_app_filter(&g_windows);
+    assert(!border_of(51) && border_of(52) && border_of(55));
+    // Missing/invalid metadata also stays bare; restoring the static title retries.
+    fake_titles = @{@51:@42, @52:@"图片和视频"};
+    assert(!windows_window_create(&g_windows,51,1));
+    fake_titles = @{@51:@"微信", @52:@"图片和视频"};
+    fail_description=true;
+    assert(!windows_window_create(&g_windows,51,1));
+    fail_description=false;
+    assert(windows_window_create(&g_windows,51,1));
+    knit_app_set_hidden("com.tencent.xinWeChat",true);
+    windows_apply_app_filter(&g_windows);
+    assert(!border_of(51) && !border_of(52) && border_of(55));
+    knit_app_set_hidden("com.tencent.xinWeChat",false);
+    windows_add_existing_windows(&g_windows);
+    assert(border_of(51) && border_of(52) && !border_of(53) && !border_of(54));
   }
   puts("PASS: live per-app switching through the production window code: targeted removal and "
        "restoration, focus restored, all off/on, script filters respected, closed windows stay closed");

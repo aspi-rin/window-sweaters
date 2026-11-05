@@ -81,3 +81,8 @@ const char* knit_app_exception(int index);
 /// parsed from a path. A process without a bundle identifier cannot be
 /// listed, so it follows the default.
 bool knit_pid_hidden(int pid);
+
+/// Built-in per-window compatibility policy. WeChat permits its main window
+/// and image/video viewer only; unknown or unreadable WeChat titles stay bare.
+/// Other apps retain their normal policy. Main thread only, no AX permission.
+bool knit_window_supported(int pid, uint32_t wid);

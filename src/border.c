@@ -316,6 +316,11 @@ void border_refresh_space(struct border* border) {
 
 void border_update_internal(struct border* border, struct settings* settings, const CGRect* observed_bounds) {
   if (border->external_proxy_wid || border->resize_suppressed) return;
+  if (!border->is_proxy && !knit_window_supported(border->owner_pid, border->target_wid)) {
+    border->metadata_dirty = true;
+    border_hide(border);
+    return;
+  }
   border->geometry_valid = false;
 
   int cid = border->cid;
@@ -624,7 +629,8 @@ void border_update(struct border* border, bool try_async) {
 void border_reorder(struct border* border) {
   struct settings* settings = border_get_settings(border);
   pthread_mutex_lock(&border->mutex);
-  if (border->self_shadowed || border_check_expanded(border,settings,NULL)) {
+  if ((!border->is_proxy && !knit_window_supported(border->owner_pid, border->target_wid))
+      || border->self_shadowed || border_check_expanded(border,settings,NULL)) {
     border_hide(border);
     pthread_mutex_unlock(&border->mutex);
     return;
@@ -685,7 +691,8 @@ void border_hide(struct border* border) {
 
 void border_unhide(struct border* border) {
   pthread_mutex_lock(&border->mutex);
-  if (border->self_shadowed
+  if ((!border->is_proxy && !knit_window_supported(border->owner_pid, border->target_wid))
+      || border->self_shadowed
       || border_check_expanded(border,border_get_settings(border),NULL)) {
     border_hide(border);
     pthread_mutex_unlock(&border->mutex);
